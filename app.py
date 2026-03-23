@@ -54,8 +54,7 @@ CORS(app)  # allow cross-origin for frontend
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    # Placeholder; override with real credentials via env var
-    "postgresql://postgres:Ajay7624@localhost:5432/ecopack",
+    "postgresql://neondb_owner:npg_TMQtbs3cL2am@ep-divine-feather-a10xy0vr-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
 )
 
 Base = declarative_base()
@@ -95,18 +94,15 @@ SessionLocal = None
 def init_db():
     global engine, SessionLocal
     try:
-        engine = create_engine(DATABASE_URL, echo=False)
+        engine = create_engine(
+            DATABASE_URL,
+            connect_args={"sslmode": "require"}
+        )
         SessionLocal = sessionmaker(bind=engine)
-        # Do NOT create tables; they are already defined in PostgreSQL
-        # Base.metadata.create_all(engine)
         return True
     except Exception as exc:
-        # Log to console only; API will report DB status via /api/health
         print(f"[DB] Connection failed: {exc}")
-        engine = None
-        SessionLocal = None
         return False
-
 
 DB_AVAILABLE = init_db()
 
