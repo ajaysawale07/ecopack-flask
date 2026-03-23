@@ -1,0 +1,50 @@
+CREATE TABLE materials (
+    material_id SERIAL PRIMARY KEY,
+    material_type VARCHAR(100),
+    strength_psi FLOAT,
+    weight_capacity_kg FLOAT,
+    biodegradability_percent FLOAT,
+    co2_emission_score_percent FLOAT,
+    recyclability_percent FLOAT,
+    cost_per_kg_usd FLOAT
+);
+
+CREATE TABLE products (
+    product_id SERIAL PRIMARY KEY,
+    product_name VARCHAR(100),
+    category VARCHAR(50),
+    product_weight_kg FLOAT,
+    fragility_level VARCHAR(20)
+);
+
+ecopack=# \d materials
+                                                  Table "public.materials"
+           Column           |          Type          | Collation | Nullable |           
+         Default
+----------------------------+------------------------+-----------+----------+------------------------------------------------
+ material_id                | integer                |           | not null | nextval('materials_material_id_seq'::regclass)
+ material_type              | character varying(100) |           |          |
+ strength_psi               | double precision       |           |          |
+ weight_capacity_kg         | double precision       |           |          |
+ biodegradability_percent   | double precision       |           |          |
+ co2_emission_score_percent | double precision       |           |          |
+ recyclability_percent      | double precision       |           |          |
+ cost_per_kg_usd            | double precision       |           |          |
+Indexes:
+    "materials_pkey" PRIMARY KEY, btree (material_id)
+
+
+ecopack=# \d products 
+                                             Table "public.products"
+      Column       |          Type          | Collation | Nullable |                   Default
+-------------------+------------------------+-----------+----------+----------------------------------------------
+ product_id        | integer                |           | not null | nextval('products_product_id_seq'::regclass)
+ product_name      | character varying(100) |           |          |
+ category          | character varying(50)  |           |          |
+ product_weight_kg | double precision       |           |          |
+ fragility_level   | character varying(20)  |           |          |
+Indexes:
+    "products_pkey" PRIMARY KEY, btree (product_id)
+
+
+pip install flask flask-cors sqlalchemy psycopg2-binary pandas numpy joblib xgboost scikit-learn

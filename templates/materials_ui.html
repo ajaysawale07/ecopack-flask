@@ -1,0 +1,221 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row mb-4">
+  <div class="col-12 col-lg-6 mb-3">
+    <h1 class="hero-title">AI Material Recommendation</h1>
+    <p class="hero-subtitle">
+      Enter product details and let the model suggest the most
+      cost-efficient and eco-friendly packaging materials.
+    </p>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- Input Form -->
+  <div class="col-12 col-lg-4">
+    <div class="card card-shadow">
+      <div class="card-body">
+        <h5 class="card-title">Product Parameters</h5>
+        <form method="post" action="/ui">
+          <div class="mb-3">
+            <label for="product_weight_kg" class="form-label">Product Weight (kg)</label>
+            <input type="number" step="0.1" min="0.1" class="form-control" id="product_weight_kg" name="product_weight_kg" value="5.0" required>
+          </div>
+          <div class="mb-3">
+            <label for="fragility_level" class="form-label">Fragility Level</label>
+            <select class="form-select" id="fragility_level" name="fragility_level">
+              {% for level in fragility_options %}
+              <option value="{{ level }}" {% if level == 'Medium' %}selected{% endif %}>{{ level }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="top_n" class="form-label">Number of Recommendations</label>
+            <input type="number" min="1" max="20" class="form-control" id="top_n" name="top_n" value="5" required>
+          </div>
+          <button type="submit" class="btn btn-success w-100">Get Recommendations</button>
+        </form>
+      </div>
+    </div>
+    <!-- Save Product Form (writes to products table) -->
+    <div class="card card-shadow mt-4" id="add-product">
+      <div class="card-body">
+        <h5 class="card-title">Add Product</h5>
+        <p class="text-muted small mb-3">
+          Save a product into the database so it can be reused later.
+        </p>
+        <div id="product-message" class="d-none"></div>
+        <form id="product-form">
+          <div class="mb-3">
+            <label for="product_name" class="form-label">Product Name</label>
+            <input type="text" class="form-control" id="product_name" name="product_name" placeholder="Glass Bottle" required>
+          </div>
+          <div class="mb-3">
+            <label for="product_category" class="form-label">Category</label>
+            <input type="text" class="form-control" id="product_category" name="category" placeholder="Food / Electronics / Fragile" required>
+          </div>
+          <div class="mb-3">
+            <label for="product_weight_save" class="form-label">Product Weight (kg)</label>
+            <input type="number" step="0.1" min="0.1" class="form-control" id="product_weight_save" name="product_weight_kg" required>
+          </div>
+          <div class="mb-3">
+            <label for="product_fragility" class="form-label">Fragility Level</label>
+            <select class="form-select" id="product_fragility" name="fragility_level" required>
+              <option value="Low">Low</option>
+              <option value="Medium" selected>Medium</option>
+              <option value="High">High</option>
+              <option value="Very High">Very High</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-outline-success w-100">Save Product</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div class="col-12 col-lg-8">
+    {% if error %}
+    <div class="alert alert-warning" role="alert">
+      {{ error }}
+    </div>
+    {% endif %}
+
+    {% if result and result.recommendations %}
+    <div class="card card-shadow mb-3">
+      <div class="card-body">
+        <h5 class="card-title mb-3">Summary</h5>
+        <div class="row g-3">
+          <div class="col-md-4">
+            <div class="border rounded p-2 text-center bg-light">
+              <div class="fw-semibold">Candidates</div>
+              <div class="fs-4">{{ result.total_candidates }}</div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="border rounded p-2 text-center bg-light">
+              <div class="fw-semibold">Top Shown</div>
+              <div class="fs-4">{{ result.top_n }}</div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="border rounded p-2 text-center bg-light">
+              <div class="fw-semibold">Min Strength (PSI)</div>
+              <div class="fs-4">{{ result.product_constraints.min_strength_psi }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card card-shadow">
+      <div class="card-body">
+        <h5 class="card-title mb-3">Recommended Materials</h5>
+        <div class="table-responsive">
+          <table class="table table-striped table-hover align-middle">
+            <thead class="table-success">
+              <tr>
+                <th>#</th>
+                <th>Material Type</th>
+                <th>Strength (PSI)</th>
+                <th>Weight Cap. (kg)</th>
+                <th>Biodeg. (%)</th>
+                <th>Recycl. (%)</th>
+                <th>Cost ($/kg)</th>
+                <th>Pred. Cost</th>
+                <th>Pred. CO2</th>
+                <th>AI Score</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for rec in result.recommendations %}
+              <tr>
+                <td>{{ loop.index }}</td>
+                <td>{{ rec.material_type }}</td>
+                <td>{{ '%.0f' | format(rec.strength_psi) }}</td>
+                <td>{{ '%.1f' | format(rec.weight_capacity_kg) }}</td>
+                <td>{{ '%.1f' | format(rec.biodegradability_percent) }}</td>
+                <td>{{ '%.1f' | format(rec.recyclability_percent) }}</td>
+                <td>{{ '%.2f' | format(rec.cost_per_kg_usd) }}</td>
+                <td>{{ '%.2f' | format(rec.predicted_cost) }}</td>
+                <td>{{ '%.2f' | format(rec.predicted_co2) }}</td>
+                <td>
+                  <span class="badge bg-success badge-score">
+                    {{ '%.3f' | format(rec.ai_recommendation_score) }}
+                  </span>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    {% elif result and not result.recommendations %}
+    <div class="alert alert-info" role="alert">
+      No materials matched your constraints. Try lowering fragility or product weight.
+    </div>
+    {% else %}
+    <div class="alert alert-secondary" role="alert">
+      Submit the form on the left to see ranked material recommendations here.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+  (function () {
+    const form = document.getElementById('product-form');
+    if (!form) return;
+
+    const messageBox = document.getElementById('product-message');
+
+    form.addEventListener('submit', async function (e) {
+      e.preventDefault();
+
+      messageBox.className = 'd-none';
+      messageBox.innerHTML = '';
+
+      const payload = {
+        product_name: document.getElementById('product_name').value.trim(),
+        category: document.getElementById('product_category').value.trim(),
+        product_weight_kg: parseFloat(document.getElementById('product_weight_save').value),
+        fragility_level: document.getElementById('product_fragility').value,
+      };
+
+      if (!payload.product_name || !payload.category || !payload.product_weight_kg || !payload.fragility_level) {
+        messageBox.className = 'alert alert-warning mt-2';
+        messageBox.textContent = 'Please fill in all product fields.';
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/product', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+
+        const data = await response.json().catch(() => ({}));
+
+        if (response.ok && data.success) {
+          messageBox.className = 'alert alert-success mt-2';
+          messageBox.textContent = data.message || 'Product saved successfully.';
+          form.reset();
+        } else {
+          const errMsg = (data && data.error) ? data.error : 'Failed to save product.';
+          messageBox.className = 'alert alert-danger mt-2';
+          messageBox.textContent = errMsg;
+        }
+      } catch (err) {
+        messageBox.className = 'alert alert-danger mt-2';
+        messageBox.textContent = 'Network error while saving product.';
+      }
+    });
+  })();
+</script>
+
+{% endblock %}

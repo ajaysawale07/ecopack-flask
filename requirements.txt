@@ -1,0 +1,14 @@
+flask
+flask-cors
+sqlalchemy
+psycopg2-binary
+pandas
+numpy
+joblib
+xgboost
+scikit-learn
+plotly
+openpyxl
+xlsxwriter
+reportlab
+gunicorn

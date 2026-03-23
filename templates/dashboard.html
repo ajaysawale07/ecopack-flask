@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row mb-4">
+  <div class="col-12">
+    <div class="dashboard-hero d-flex flex-column flex-lg-row align-items-lg-center justify-content-between">
+      <div class="mb-3 mb-lg-0">
+        <h1 class="hero-title mb-1">Sustainability Analytics Dashboard</h1>
+        <p class="hero-subtitle mb-1">
+          Monitor real-time CO2 reduction, cost savings, and material usage trends
+          derived from the EcoPack AI recommendations.
+        </p>
+        <span class="badge bg-success-subtle text-success border border-success border-opacity-25 mt-2">
+          <i class="bi bi-activity me-1"></i> Live insights from materials dataset
+        </span>
+      </div>
+      <div class="text-lg-end">
+        <a href="/dashboard/export/pdf" class="btn btn-outline-secondary me-2 mb-2">
+          <i class="bi bi-file-earmark-pdf me-1"></i>PDF Report
+        </a>
+        <a href="/dashboard/export/excel" class="btn btn-success mb-2">
+          <i class="bi bi-file-earmark-spreadsheet me-1"></i>Excel Export
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if error %}
+<div class="alert alert-warning" role="alert">
+  {{ error }}
+</div>
+{% endif %}
+
+{% if metrics %}
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="card card-shadow border-0 metric-card" style="background: linear-gradient(135deg, #e8f5e9, #c8e6c9);">
+      <div class="card-body text-center">
+        <div class="fw-semibold text-success"><i class="bi bi-cloud-arrow-down me-1"></i>CO2 Reduction</div>
+        <div class="fs-3 fw-bold text-success">{{ '%.1f' | format(metrics.co2_reduction_pct|default(0.0)) }}%</div>
+        <div class="text-muted small">Top 10 vs overall average</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card card-shadow border-0 metric-card" style="background: linear-gradient(135deg, #e3f2fd, #bbdefb);">
+      <div class="card-body text-center">
+        <div class="fw-semibold text-primary"><i class="bi bi-cash-coin me-1"></i>Cost Savings</div>
+        <div class="fs-3 fw-bold text-primary">{{ '%.1f' | format(metrics.cost_savings_pct|default(0.0)) }}%</div>
+        <div class="text-muted small">Top 10 vs overall average</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card card-shadow border-0 metric-card" style="background: linear-gradient(135deg, #fffde7, #fff9c4);">
+      <div class="card-body text-center">
+        <div class="fw-semibold text-warning"><i class="bi bi-arrow-repeat me-1"></i>Avg Recyclability</div>
+        <div class="fs-3 fw-bold">{{ '%.1f' | format(metrics.avg_recyclability|default(0.0)) }}%</div>
+        <div class="text-muted small">Across all materials</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card card-shadow border-0 metric-card" style="background: linear-gradient(135deg, #f3e5f5, #e1bee7);">
+      <div class="card-body text-center">
+        <div class="fw-semibold text-purple"><i class="bi bi-tree me-1"></i>Avg Biodegradability</div>
+        <div class="fs-3 fw-bold">{{ '%.1f' | format(metrics.avg_biodegradability|default(0.0)) }}%</div>
+        <div class="text-muted small">Across all materials</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div class="row g-4">
+  <div class="col-12 col-lg-6">
+    <div class="card card-shadow chart-card bg-white">
+      <div class="card-body">
+        <h5 class="card-title mb-3"><i class="bi bi-speedometer2 me-1 text-success"></i>CO2 Emission by Material</h5>
+        <div id="co2_chart" style="height: 360px;"></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-lg-6">
+    <div class="card card-shadow chart-card bg-white">
+      <div class="card-body">
+        <h5 class="card-title mb-3"><i class="bi bi-graph-up-arrow me-1 text-primary"></i>Cost per KG by Material</h5>
+        <div id="cost_chart" style="height: 360px;"></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12">
+    <div class="card card-shadow chart-card bg-white">
+      <div class="card-body">
+        <h5 class="card-title mb-3"><i class="bi bi-bar-chart-steps me-1 text-secondary"></i>Material Usage Trends</h5>
+        <div id="usage_chart" style="height: 380px;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<script>
+  (function () {
+    const graphs = {{ graphs_json | safe if graphs_json else 'null' }};
+    if (!graphs || graphs.length < 3) return;
+
+    Plotly.newPlot('co2_chart', graphs[0].data, graphs[0].layout || {});
+    Plotly.newPlot('cost_chart', graphs[1].data, graphs[1].layout || {});
+    Plotly.newPlot('usage_chart', graphs[2].data, graphs[2].layout || {});
+  })();
+</script>
+
+{% endblock %}
