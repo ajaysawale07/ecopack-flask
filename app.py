@@ -56,6 +56,10 @@ DATABASE_URL = os.getenv(
     "DATABASE_URL",
     "postgresql://neondb_owner:npg_TMQtbs3cL2am@ep-divine-feather-a10xy0vr-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
 )
+# DATABASE_URL = os.getenv(
+#     "DATABASE_URL",
+#     "postgresql://postgres:Ajay7624@localhost:5432/ecopack"
+# )
 
 Base = declarative_base()
 
@@ -92,16 +96,38 @@ engine = None
 SessionLocal = None
 
 def init_db():
+    """Initialise database engine/session.
+
+    Tries with SSL first (for hosted DBs like Neon). If the server
+    does not support SSL, falls back to a plain connection so local
+    PostgreSQL works without extra config.
+    """
+
     global engine, SessionLocal
+
+    # First attempt: require SSL (for cloud providers that need it)
     try:
         engine = create_engine(
             DATABASE_URL,
             connect_args={"sslmode": "require"}
         )
         SessionLocal = sessionmaker(bind=engine)
+        # Test a connection eagerly so we can fall back if needed
+        with engine.connect() as _:
+            pass
         return True
     except Exception as exc:
-        print(f"[DB] Connection failed: {exc}")
+        print(f"[DB] SSL connection failed, retrying without SSL: {exc}")
+
+    # Fallback: no explicit SSL mode (for local PostgreSQL without SSL)
+    try:
+        engine = create_engine(DATABASE_URL)
+        SessionLocal = sessionmaker(bind=engine)
+        with engine.connect() as _:
+            pass
+        return True
+    except Exception as exc:
+        print(f"[DB] Connection failed even without SSL: {exc}")
         return False
 
 DB_AVAILABLE = init_db()
@@ -129,6 +155,8 @@ features = [
 
 def load_models_and_data():
     global rf_model, xgb_model, engineered_df
+
+    # Load trained pipelines
     try:
         rf_model = joblib.load(MODEL_COST_PATH)
         xgb_model = joblib.load(MODEL_CO2_PATH)
@@ -137,10 +165,46 @@ def load_models_and_data():
         rf_model = None
         xgb_model = None
 
+    # Prefer loading engineered_df from PostgreSQL materials table when available
+    if DB_AVAILABLE and SessionLocal is not None:
+        try:
+            session = SessionLocal()
+            materials = session.query(Material).all()
+            if materials:
+                rows = []
+                for m in materials:
+                    rows.append(
+                        {
+                            "Material_Type": m.material_type,
+                            "Strength_PSI": m.strength_psi,
+                            "Weight_Capacity_KG": m.weight_capacity_kg,
+                            "Biodegradability_%": m.biodegradability_percent,
+                            "Recyclability_%": m.recyclability_percent,
+                            "Cost_per_KG_USD": m.cost_per_kg_usd,
+                            "CO2_Emission_Score_%": m.co2_emission_score_percent,
+                        }
+                    )
+
+                engineered_df = pd.DataFrame(rows)
+                print(f"[DATA] Loaded {len(engineered_df)} materials from database.")
+                return
+            else:
+                print("[DATA] materials table is empty; falling back to CSV.")
+        except Exception as exc:
+            print(f"[DATA] Error loading dataset from database: {exc}")
+            engineered_df = None
+        finally:
+            try:
+                session.close()
+            except Exception:
+                pass
+
+    # Fallback: load engineered_df from CSV
     try:
         engineered_df = pd.read_csv(DATA_PATH)
+        print(f"[DATA] Loaded dataset from {DATA_PATH} with {len(engineered_df)} rows.")
     except Exception as exc:
-        print(f"[DATA] Error loading dataset: {exc}")
+        print(f"[DATA] Error loading dataset from CSV: {exc}")
         engineered_df = None
 
 
